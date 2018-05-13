@@ -1,6 +1,0 @@
-name: Orders Export Barrett
-description: Export order completed to barrett
-type: module
-package: Celeb
-author: Alberto Cocchiara
-core: 8.x

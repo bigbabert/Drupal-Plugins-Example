@@ -1,8 +1,0 @@
-# Test API endpoints
-
-orderrest.get:
-  path: 'api/v2/orders'
-  defaults: { _controller: '\Drupal\orderrest\Controller\OrdersAPIController::OrdersAPI' }
-  methods:  [GET]
-  requirements:
-    _access: 'TRUE'

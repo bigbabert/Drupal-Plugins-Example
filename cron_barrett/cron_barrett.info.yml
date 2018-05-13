@@ -1,6 +1,0 @@
-name: Cron barrett
-type: module
-description: 'Barrett import tracking code cron job'
-package: Celeb
-author: Alberto Cocchiara
-core: 8.x
