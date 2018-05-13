@@ -1,0 +1,3 @@
+cron_orders.description:
+  title: Cron Orders
+  route_name: cron_orders

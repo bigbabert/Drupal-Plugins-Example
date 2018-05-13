@@ -1,0 +1,4 @@
+# Default form values for \Drupal\cron_orders\Form\CronOrdersForm.
+# @see examples/cron_orders/config/schema/cron_orders.schema.yml
+# @see \Drupal\cron_orders\Form\CronOrdersForm::getEditableConfigNames()
+interval: 86400

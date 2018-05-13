@@ -1,0 +1,8 @@
+# Test API endpoints
+
+contactus.get:
+  path: 'api/v1/contactus'
+  defaults: { _controller: '\Drupal\contactus\Controller\ContactUsAPIController::contactUs' }
+  methods:  [GET]
+  requirements:
+    _access: 'TRUE'

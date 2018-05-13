@@ -1,0 +1,6 @@
+services:
+  ordersapi.order_complete:
+    class: \Drupal\ordersapi\EventSubscriber\OrderCompleteSubscriber
+    tags:
+      - { name: event_subscriber }
+    arguments: ['@entity_type.manager', '@string_translation']

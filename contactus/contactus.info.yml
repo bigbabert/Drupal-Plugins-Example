@@ -1,0 +1,6 @@
+name: Contact US API
+description: Contact Us RESTful API module with send mail function
+type: module
+package: Celeb
+author: Alberto Cocchiara
+core: 8.x

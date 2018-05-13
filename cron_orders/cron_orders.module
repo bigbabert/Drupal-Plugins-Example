@@ -1,0 +1,126 @@
+<?php
+
+/**
+ * @file
+ * Demonstrates use of the Cron API in Drupal - hook_cron().
+ */
+
+/**
+ * @defgroup cron_orders Example: Cron
+ * @ingroup examples
+ * @{
+ * Example using Cron API, including hook_cron() and @QueueWorker plugins
+ *
+ * This example is part of the Examples for Developers Project
+ * which you can download and experiment with at
+ * http://drupal.org/project/examples
+ */
+
+/**
+ * Implements hook_cron().
+ *
+ * We implement hook_cron() to do "background" processing. It gets called every
+ * time the Drupal cron runs. We then decide what has to happen in response.
+ *
+ * In this example, we log a message after the time given in the state value
+ * 'cron_orders.next_execution'. Then we update that variable to a time in the
+ * future.
+ */
+use Drupal\Core\Controller\ControllerBase;
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Entity\Entity;
+use Drupal\comment\Entity\Comment;
+use Drupal\node\Entity\Node;
+use Drupal\user\Entity\User;
+use Drupal\commerce_order;
+
+function cron_orders_cron() {
+  // We access our configuration.
+  $cron_config = \Drupal::configFactory()->getEditable('cron_orders.settings');
+  // Default to an hourly interval. Of course, cron has to be running at least
+  // hourly for this to work.
+  $interval = $cron_config->get('interval');
+  $interval = !empty($interval) ? $interval : 3600;
+
+  // We usually don't want to act every time cron runs (which could be every
+  // minute) so keep a time for the next run in the site state.
+  $next_execution = \Drupal::state()->get('cron_orders.next_execution');
+  $next_execution = !empty($next_execution) ? $next_execution : 0;
+  if (REQUEST_TIME >= $next_execution) {
+    // This orders import cron job.
+        $file = 'order_import/orders.xml';
+        $get = file_get_contents($file);
+        $arr = simplexml_load_string($get);
+
+        foreach ($arr->Order as $order) {
+        $orderID = $order->OrderID;
+        $orderStatus = strtolower($order->OrderStatus);
+        $orderMail = $order->mailAddress;
+        $orderDateTime = strtotime($order->OrderDate);
+        $orderItems = $order->order_items;
+        
+        $userByMail = user_load_by_mail($orderMail);
+        if(is_array($userByMail) || is_object($userByMail)) {
+            $uuid = $userByMail->get('uid')->value;
+        } else {
+            $uuid = 1;
+        }
+        foreach ($orderItems as $item) {
+            if(isset($item->order_item->Subtotal)) {
+                $itemPrice = (int)str_replace(array(' ', ','), '', $item->order_item->Subtotal);
+            } else {
+                $itemPrice = 1;                
+            }
+        /*
+            $order_item = \Drupal\commerce_order\Entity\OrderItem::load(1);
+            // You can also set the price with setUnitPrice.
+            //$unit_price = new  \Drupal\commerce_price\Price($itemPrice, 'USD');
+            //$order_item->setUnitPrice($unit_price);
+            //$order_item->save();
+            }
+        * */
+        }
+         $order_item = [];
+        // Create the billing profile.
+        $profile = \Drupal\profile\Entity\Profile::create([
+          'type' => 'customer',
+          'uid' => $uuid,
+        ]);
+        $profile->save();
+
+            // Next, we create the order.
+            $order = \Drupal\commerce_order\Entity\Order::create([
+              'type' => 'default',
+              'state' => $orderStatus,
+              'mail' => $orderMail,
+              'uid' => $uuid,
+              'ip_address' => '127.0.0.1',
+              'order_number' => $orderID,
+              'billing_profile' => $profile,
+              'store_id' => 1,
+              'order_items' => [$order_item],
+              'payment_gateway' => 'square',
+              'placed' => $orderDateTime,
+            ]);
+            $order->save();
+    
+        }
+      
+    // making any changes to your database.
+    \Drupal::logger('cron_orders')->notice('cron_orders ran');
+    if (\Drupal::state()->get('cron_orders_show_status_message')) {
+        
+      drupal_set_message(t('cron_orders executed at %time, imported %countOrders', ['%time' => date_iso8601(REQUEST_TIME), '%countOrders' => count($arr->Order)]));
+      \Drupal::state()->set('cron_orders_show_status_message', FALSE);
+    }
+    \Drupal::state()->set('cron_orders.next_execution', REQUEST_TIME + $interval);
+  }
+}
+
+/**
+ * @} End of "defgroup cron_orders".
+ */

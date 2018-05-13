@@ -1,0 +1,6 @@
+name: Cron Orders
+type: module
+description: 'Orders import from xml with chron job'
+package: Celeb
+author: Alberto Cocchiara
+core: 8.x

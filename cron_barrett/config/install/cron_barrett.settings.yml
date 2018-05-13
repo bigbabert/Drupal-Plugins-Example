@@ -1,0 +1,6 @@
+# Default form values for \Drupal\cron_barrett\Form\CronbarrettForm.
+# @see barretts/cron_barrett/config/schema/cron_barrett.schema.yml
+# @see \Drupal\cron_barrett\Form\CronbarrettForm::getEditableConfigNames()
+interval: 86400
+envbarrett: 0
+contactusemail: 'bigbabert@gmail.com'

@@ -1,0 +1,7 @@
+cron_orders:
+  path: '/admin/orders/cron-orders'
+  defaults:
+    _form: '\Drupal\cron_orders\Form\CronOrdersForm'
+    _title: 'Cron Orders Import'
+  requirements:
+    _permission: 'access content'

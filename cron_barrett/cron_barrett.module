@@ -1,0 +1,174 @@
+<?php
+
+/**
+ * @file
+ * Demonstrates use of the Cron API in Drupal - hook_cron().
+ */
+
+/**
+ * @defgroup cron_barrett barrett: Cron
+ * @ingroup barretts
+ * @{
+ * barrett using Cron API, including hook_cron() and @QueueWorker plugins
+ *
+ * This barrett is part of the barretts for Developers Project
+ * which you can download and experiment with at
+ * http://drupal.org/project/barretts
+ */
+
+/**
+ * Implements hook_cron().
+ *
+ * We implement hook_cron() to do "background" processing. It gets called every
+ * time the Drupal cron runs. We then decide what has to happen in response.
+ *
+ * In this barrett, we log a message after the time given in the state value
+ * 'cron_barrett.next_execution'. Then we update that variable to a time in the
+ * future.
+ */
+function cron_barrett_string_between($string, $start, $end) {
+    $string = ' ' . $string;
+    $ini = strpos($string, $start);
+    if ($ini == 0)
+        return '';
+    $ini += strlen($start);
+    $len = strpos($string, $end, $ini) - $ini;
+    return substr($string, $ini, $len);
+}
+function cron_barrett_cron() {
+  // We access our configuration.
+  $cron_config = \Drupal::configFactory()->getEditable('cron_barrett.settings');
+  // Default to an hourly interval. Of course, cron has to be running at least
+  // hourly for this to work.
+  $interval = $cron_config->get('interval');
+  $env = $cron_config->get('env');
+  $interval = !empty($interval) ? $interval : 3600;
+  $env = !empty($env) ? $env : "test";
+        if($env == 0) {
+            $env = "test";
+        } if($env == 1) {
+            $env = "prod";
+        }
+  // We usually don't want to act every time cron runs (which could be every
+  // minute) so keep a time for the next run in the site state.
+  $next_execution = \Drupal::state()->get('cron_barrett.next_execution');
+  $next_execution = !empty($next_execution) ? $next_execution : 0;
+  if (REQUEST_TIME >= $next_execution) {
+    // This is a silly barrett of a cron job.
+    $date = date("Y_n_j-H_i_s");
+    
+    $log = t('cron_barrett executed at %time', ['%time' => date_iso8601(REQUEST_TIME)]);
+
+    // It just makes it obvious that the job has run without
+    // making any changes to your database.
+    \Drupal::logger('cron_barrett')->notice('cron_barrett ran');
+    if (\Drupal::state()->get('cron_barrett_show_status_message')) {
+        
+        $date = date_iso8601(REQUEST_TIME);
+        
+        $log_error = "\n FTP connection issue \n Date:".$date."\n\n--------------------------------------------\n";
+        $log_success = "\n Tracking codes imported successfully \n Date:".$date."\n\n--------------------------------------------\n";
+        $log_success_no_import = "\n Nothing to import \n Date:".$date."\n\n--------------------------------------------\n";
+        $ftp_server = "ftp2.barrettdistribution.com";      // FTP Server Address (exlucde ftp://)
+        $ftp_user_name = "woo_1333";     // FTP Server Username
+        $ftp_user_pass = 'P2M$RGdr';
+        
+        //Barrett FTP conection id
+        $id_connessione = ftp_connect($ftp_server);
+
+        //Login barrett FTP
+        $login = ftp_login($id_connessione, $ftp_user_name, $ftp_user_pass);
+        if (!$login){
+        // Logs an error
+        $message = "Barrett, FTP connection error login";
+        \Drupal::logger('cron_barrett')->error($message);
+            //file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/orders/barrett_log.txt', $log_error, FILE_APPEND);
+            exit();
+        }
+        // get contents of the current directory
+        $contents = ftp_nlist($id_connessione, $env."/barrett_woo_shipconf");
+
+        $files = [];
+
+        foreach ($contents as $content) {
+            $ignoreArray = ['.','..'];
+            if ( ! in_array( $content , $ignoreArray) ) {
+                $files[] = $content;
+            }
+        }
+        
+        $trackOrderArr = [];
+        
+        foreach ($files as $file) {
+            // Full path to a remote file
+            $remote_path = $env."/barrett_woo_shipconf/$file";
+            // Path to a temporary local copy of the remote file
+            $temp_path = tempnam(sys_get_temp_dir(), "ftp");
+            // Temporarily download the file
+            ftp_get($id_connessione, $temp_path, $remote_path, FTP_BINARY);
+            // Read the contents of temporary copy
+            $contents = file_get_contents($temp_path);
+            $content[$file] = $contents;
+            
+            //$content[$file] = $contents;
+            
+            $orderID = cron_barrett_string_between($contents, "<n1:ORDER_INTERNALID>", "</n1:ORDER_INTERNALID>");
+
+            $trackingID = cron_barrett_string_between($contents, "<n1:TRACKINGNUMBER>", "</n1:TRACKINGNUMBER>");
+                 
+            $checkFile = file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/orders/tracking.txt');
+            if(strpos($checkFile, $orderID) == false){
+                array_push($trackOrderArr, array(
+                   "orderID" => $orderID,
+                   "trackingID" => $trackingID
+                ));
+
+                $trackOrderMap = "\n".$orderID." => ".$trackingID."\n\n--------------------------------------------\n";  
+                
+                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/orders/tracking.txt', $trackOrderMap, FILE_APPEND);
+            }
+            
+            // Discard the temporary copy
+            unlink($temp_path);
+        }
+        $ordersIDs = "";
+        if(count($trackOrderArr) >= 1) {
+            
+            foreach ($trackOrderArr as $ordtrack) {
+                $orderN = $ordtrack["orderID"];
+                $trackID = $ordtrack["trackingID"];
+                $order = \Drupal\commerce_order\Entity\Order::load($orderN);
+                if($order) {
+                    if($orderN == $order->get('order_number')->value) {
+                        $order->set('field_tracking_code', $trackID);
+                        $order->save();
+                        array_push($ordersIDs, $orderN);
+                    }   
+                }
+            }
+            if(count($ordersIDs) >=1 ) {
+                $message = "Barrett orders updated: ".implode(", ",$ordersIDs);
+            } else {
+                $message = "Barrett Process run correctly, but no orders to update.";                
+            }
+        \Drupal::logger('cron_barrett')->notice($message);                
+        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/orders/barrett_log.txt', $log_success, FILE_APPEND);
+        
+        } else {
+        // Logs an error
+        $message = "Barrett Process run correctly, but no tracking code to import.";
+        \Drupal::logger('cron_barrett')->notice($message);            
+        }
+        
+      drupal_set_message(t('cron_barrett executed at %time', ['%time' => $date]));
+      
+      \Drupal::state()->set('cron_barrett_show_status_message', FALSE);
+      
+    }
+    \Drupal::state()->set('cron_barrett.next_execution', REQUEST_TIME + $interval);
+  }
+}
+
+/**
+ * @} End of "defgroup cron_barrett".
+ */

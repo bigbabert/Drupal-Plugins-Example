@@ -1,0 +1,7 @@
+cron_barrett:
+  path: '/admin/barretts/cron-barrett'
+  defaults:
+    _form: '\Drupal\cron_barrett\Form\CronbarrettForm'
+    _title: 'Cron barrett'
+  requirements:
+    _permission: 'access content'

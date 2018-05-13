@@ -1,0 +1,12 @@
+name: Maps for Drupal
+type: module
+description: The module allows you to associate a geographic location with content and users. Users can do proximity searches by postal code. This is useful for organizing communities that have a geographic presence. Views plugins to show Google Maps from entities.
+package: Location
+# core: 8.x
+configure: dmaps.settings
+
+# Information added by Drupal.org packaging script on 2016-03-02
+version: '8.x-1.x-dev'
+core: '8.x'
+project: 'dmaps'
+datestamp: 1456916236

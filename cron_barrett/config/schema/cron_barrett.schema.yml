@@ -1,0 +1,18 @@
+# Set configuration defaults. This schema describes the cron_barrett.settings
+# config. The defaults for this config are set in
+# config/install/cron_barrett.settings.yml and then used by
+# \Drupal\cron_barrett\Form\CronbarrettForm.
+# @see https://www.drupal.org/node/1905070
+cron_barrett.settings:
+  type: config_object
+  label: 'Cron Barrett settings'
+  mapping:
+    interval:
+      type: integer
+      label: 'Period between cron runs'
+    envbarrett:
+        type: integer
+        label: 'Barrett Environment'
+    contactusemail:
+        type: string
+        label: 'Contact US email'
